@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "/Users/croaker/git/EveCli"
+		},
+		{
+			"path": "/Users/croaker/git/AsyncQueueRunner"
+		}
+	],
+	"settings": {
+		"python.pythonPath": ".venv/bin/python",
+		"python.unitTest.unittestEnabled": false,
+		"python.unitTest.pyTestEnabled": true,
+		"python.unitTest.nosetestsEnabled": false,
+		"python.unitTest.pyTestArgs": ["-l","-v","-s","--tb=native","-W ignore::DeprecationWarning","--log-cli-level=INFO"]
+	}
+}
