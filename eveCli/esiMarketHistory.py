@@ -1,12 +1,13 @@
+
 import asyncQueueRunner.asyncHttpQueueRunner as AQR
 import argparse
 import sys
 from datetime import datetime
 
-API_NAME = "EVE Market Prices"
+API_NAME = "EVE Market History"
 EVE_ESI = "https://esi.evetech.net/latest/"
-API = "markets/prices/?datasource=tranquility"
-FILENAME = "MarketPrices"
+API = "markets/<region_id>/history/?datasource=tranquility&type_id=<type_id>"
+FILENAME = "MarketHistory_region_id-<region_id>_type_id-<type_id>"
 DATETIMESTRING = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
 
 # TODO implement default name, with datetime prefix?
@@ -24,6 +25,10 @@ def check_arg(args=None):
                         help='Default = json. Output format. Supported formats are, json, csv, or both.',
                         default='json',
                         choices=['json', 'csv', 'both'])
+    parser.add_argument('-r', '--region_id',
+                        help='Region id. ie 10000002')
+    parser.add_argument('-t', '--type_id',
+                        help='Type id. ie. 34')
     # parser.add_argument('-u', '--user',
     #                     help='user name',
     #                     default='root')
@@ -34,7 +39,8 @@ def check_arg(args=None):
 
 def getData() -> str:
     responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
-    url = EVE_ESI+API
+    api = f"markets/{region_id}/history/?datasource=tranquility&type_id={type_id}"
+    url = EVE_ESI+api
     action = AQR.AsyncHttpGet(url, responseHandler=responseHandler)
     queueRunner = AQR.AsyncHttpQueueRunner()
     queueRunner.execute((action,), 1)
@@ -63,9 +69,13 @@ if __name__ == '__main__':
     outputFolderPath = results.outputFolderPath
     outputFileName = results.outputFileName
     outputFormat = results.outputFormat
+    region_id = results.region_id
+    type_id = results.type_id
     print(f'p = {outputFolderPath}')
     print(f'n = {outputFileName}')
     print(f'f = {outputFormat}')
+    print(f'r = {region_id}')
+    print(f't = {type_id}')
     print(f'date string {DATETIMESTRING}')
     data = getData()
     formattedData = formatData(data, outputFormat)
