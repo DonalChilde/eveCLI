@@ -2,6 +2,7 @@
 import asyncQueueRunner.asyncHttpQueueRunner as AQR
 import argparse
 import sys
+from pathlib import Path
 from datetime import datetime
 
 API_NAME = "EVE Market History"
@@ -49,7 +50,27 @@ def check_arg(args=None):
     #                     default='root')
 
     results = parser.parse_args(args)
+    print(results)
+    validateCommands(results, parser)
     return results
+
+
+def validateCommands(results, parser):
+    if results.command == 'getmany':
+        if not Path(results.jsonInstructions).exists():
+            parser.error(
+                f"{results.jsonInstructions} does not exist. Please provide a valid path.")
+        if not results.outputPath == 'stdout':
+            if not Path(results.outputPath).exists() or not Path(results.outputPath).is_dir():
+                parser.error(
+                    f"{results.outputPath} does not exist or is not a folder/directory. \
+                    Please provide a valid path.")
+    if results.command == 'getone':
+        if not results.outputPath == 'stdout':
+            if not Path(results.outputPath).exists() or not Path(results.outputPath).is_dir():
+                parser.error(
+                    f"{results.outputPath} does not exist or is not a folder/directory. \
+                    Please provide a valid path.")
 
 
 def getData(region_id, type_id) -> str:
@@ -93,12 +114,15 @@ def getSingleResult(argResults):
     if outputPath == 'stdout':
         printToStdOut(formattedData)
     # print(argResults)
-def getFilename(region_id,type_id):
+
+
+def getFilename(region_id, type_id):
     filenameTemplate = f"MarketHistory_{region_id}_{type_id}_"
     dateString = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
     return filenameTemplate + dateString
 
-def saveToFile(formattedData,path,filename):
+
+def saveToFile(formattedData, path, filename):
     pass
 
 
