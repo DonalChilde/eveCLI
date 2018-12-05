@@ -14,9 +14,49 @@ DATETIMESTRING = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
 # TODO implement default name, with datetime prefix?
 # TODO figure out headers, useragent etc
 
+class EsiMarketHistory(object):
+    def __init__(self):
+        pass
+
+    def convertToCsv(self,data):
+        return "Not Implemeted"
+
+    def getData(self,region_id, type_id) -> str:
+        responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
+        api = f"markets/{region_id}/history/?datasource=tranquility&type_id={type_id}"
+        url = EVE_ESI+api
+        action = AQR.AsyncHttpGet(url, responseHandler=responseHandler)
+        queueRunner = AQR.AsyncHttpQueueRunner()
+        queueRunner.execute((action,), 1)
+        data = action.completedActionData
+        return data
+
+    def formatData(self,data, outputFormat):
+        if outputFormat == 'json':
+            return data
+        if outputFormat == 'csv':
+            csvData = self.convertToCsv(data)
+            return csvData
+        if outputFormat == 'both':
+            csvData = self.convertToCsv(data)
+            dataTuple = (data, csvData)
+            return dataTuple
+
+    def getSingleResult(self,argResults):
+        region_id, type_id = argResults.regionid_typeid
+        outputFileName = argResults.outputFileName
+        outputPath = argResults.outputPath
+        outputFormat = argResults.outputFormat
+        data = self.getData(region_id, type_id)
+        formattedData = self.formatData(data, outputFormat)
+        return formattedData
+       
+    
+
 class MarketHistoryCmdLineParser(object):
     def __init__(self,cmdArgs):
         self.cmdArgs = cmdArgs
+        self.emh = EsiMarketHistory()
 
     def defineCmdParser(self):
         parser = argparse.ArgumentParser(
@@ -46,12 +86,16 @@ class MarketHistoryCmdLineParser(object):
                             default='json',
                             choices=['json', 'csv', 'both'])
         return parser
+
     def doCmdLine(self):
         parser = self.defineCmdParser()
         results = parser.parse_args(self.cmdArgs[1:])
         self.validateCommands(results, parser)
         if results.command == 'getone':
-            self.getSingleResult(results)
+            formattedData = self.emh.getSingleResult(results)
+            if results.outputPath == 'stdout':
+                self.printToStdOut(formattedData)
+
 
     def validateCommands(self,results, parser):
         if results.command == 'getmany':
@@ -71,46 +115,20 @@ class MarketHistoryCmdLineParser(object):
                         Please provide a valid path.")
 
 
-    def getData(self,region_id, type_id) -> str:
-        responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
-        api = f"markets/{region_id}/history/?datasource=tranquility&type_id={type_id}"
-        url = EVE_ESI+api
-        action = AQR.AsyncHttpGet(url, responseHandler=responseHandler)
-        queueRunner = AQR.AsyncHttpQueueRunner()
-        queueRunner.execute((action,), 1)
-        data = action.completedActionData
-        return data
     
     
-    def formatData(self,data, outputFormat):
-        if outputFormat == 'json':
-            return data
-        if outputFormat == 'csv':
-            csvData = self.convertToCsv(data)
-            return csvData
-        if outputFormat == 'both':
-            csvData = self.convertToCsv(data)
-            dataTuple = (data, csvData)
-            return dataTuple
     
     
-    def convertToCsv(self,data):
-        return "Not Implemeted"
+    
+    
+    
     
     
     def printToStdOut(self,formattedData):
         print(formattedData)
     
     
-    def getSingleResult(self,argResults):
-        region_id, type_id = argResults.regionid_typeid
-        outputFileName = argResults.outputFileName
-        outputPath = argResults.outputPath
-        outputFormat = argResults.outputFormat
-        data = self.getData(region_id, type_id)
-        formattedData = self.formatData(data, outputFormat)
-        if outputPath == 'stdout':
-            self.printToStdOut(formattedData)
+    
         # print(argResults)
     
     
