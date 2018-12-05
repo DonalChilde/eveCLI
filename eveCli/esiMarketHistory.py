@@ -13,6 +13,10 @@ DATETIMESTRING = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
 
 # TODO implement default name, with datetime prefix?
 # TODO figure out headers, useragent etc
+# TODO add code for saving files, and changing formats to EsiMarketHistory
+# TODO add getResponseHandler that can save file, and convert format?
+# TODO pass path and file name in to method that creates httpactions that save a file.
+
 
 class EsiMarketHistory(object):
     def __init__(self):
