@@ -22,20 +22,23 @@ class EsiMarketHistory(object):
     def __init__(self):
         pass
 
-    def convertToCsv(self,data):
+    def convertToCsv(self, data):
         return "Not Implemeted"
 
-    def getData(self,region_id, type_id) -> str:
-        responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
-        api = f"markets/{region_id}/history/?datasource=tranquility&type_id={type_id}"
+    def getData(self, region_id, type_id) -> str:
+        # responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
+        api = f"markets/{region_id}/history/"
         url = EVE_ESI+api
-        action = AQR.AsyncHttpGet(url, responseHandler=responseHandler)
+        requestParams = {'params': {
+            'datasource': 'tranquility', 'type_id': type_id}}
+        action = AQR.AsyncHttpRequest.get(
+            url, requestParams=requestParams, storeResults=True)
         queueRunner = AQR.AsyncHttpQueueRunner()
         queueRunner.execute((action,), 1)
         data = action.completedActionData
         return data
 
-    def formatData(self,data, outputFormat):
+    def formatData(self, data, outputFormat):
         if outputFormat == 'json':
             return data
         if outputFormat == 'csv':
@@ -46,7 +49,7 @@ class EsiMarketHistory(object):
             dataTuple = (data, csvData)
             return dataTuple
 
-    def getSingleResult(self,argResults):
+    def getSingleResult(self, argResults):
         region_id, type_id = argResults.regionid_typeid
         outputFileName = argResults.outputFileName
         outputPath = argResults.outputPath
@@ -54,11 +57,10 @@ class EsiMarketHistory(object):
         data = self.getData(region_id, type_id)
         formattedData = self.formatData(data, outputFormat)
         return formattedData
-       
-    
+
 
 class MarketHistoryCmdLineParser(object):
-    def __init__(self,cmdArgs):
+    def __init__(self, cmdArgs):
         self.cmdArgs = cmdArgs
         self.emh = EsiMarketHistory()
 
@@ -76,7 +78,7 @@ class MarketHistoryCmdLineParser(object):
                              help='Default = json. Output format. Supported formats are, json, csv, or both.',
                              default='json',
                              choices=['json', 'csv', 'both'])
-    
+
         getOne = subparsers.add_parser('getone')
         getOne.add_argument('regionid_typeid', nargs=2, type=int,
                             help='region_id and type_id, ie. 10000002 34')
@@ -100,8 +102,7 @@ class MarketHistoryCmdLineParser(object):
             if results.outputPath == 'stdout':
                 self.printToStdOut(formattedData)
 
-
-    def validateCommands(self,results, parser):
+    def validateCommands(self, results, parser):
         if results.command == 'getmany':
             if not Path(results.jsonInstructions).exists():
                 parser.error(
@@ -118,31 +119,17 @@ class MarketHistoryCmdLineParser(object):
                         f"{results.outputPath} does not exist or is not a folder/directory. \
                         Please provide a valid path.")
 
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    def printToStdOut(self,formattedData):
+    def printToStdOut(self, formattedData):
         print(formattedData)
-    
-    
-    
+
         # print(argResults)
-    
-    
-    def getFilename(self,region_id, type_id):
+
+    def getFilename(self, region_id, type_id):
         filenameTemplate = f"MarketHistory_{region_id}_{type_id}_"
         dateString = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
         return filenameTemplate + dateString
-    
-    
-    def saveToFile(self,formattedData, path, filename):
+
+    def saveToFile(self, formattedData, path, filename):
         pass
 
 

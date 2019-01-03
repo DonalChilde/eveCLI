@@ -33,9 +33,11 @@ def check_arg(args=None):
 
 
 def getData() -> str:
-    responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
+    # responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
     url = EVE_ESI+API
-    action = AQR.AsyncHttpGet(url, responseHandler=responseHandler)
+    requestParams = {'params': {'datasource': 'tranquility'}}
+    action = AQR.AsyncHttpRequest.get(
+        url, requestParams=requestParams, storeResults=True)
     queueRunner = AQR.AsyncHttpQueueRunner()
     queueRunner.execute((action,), 1)
     data = action.completedActionData
