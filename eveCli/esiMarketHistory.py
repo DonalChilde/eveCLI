@@ -23,19 +23,21 @@ class EsiMarketHistory(object):
         pass
 
     def convertToCsv(self, data):
-        return "Not Implemeted"
+        raise NotImplementedError()
 
-    def getData(self, region_id, type_id) -> str:
-        # responseHandler = AQR.AsyncHttpGetResponseHandler(storeResults=True)
+    def buildRequest(self, region_id: int, type_id: int, callback=None, internalParams: dict = None) -> AQR.AsyncHttpRequest:
         api = f"markets/{region_id}/history/"
         url = EVE_ESI+api
         requestParams = {'params': {
             'datasource': 'tranquility', 'type_id': type_id}}
-        action = AQR.AsyncHttpRequest.get(
-            url, requestParams=requestParams, storeResults=True)
+        request = AQR.AsyncHttpRequest.get(
+            url, requestParams=requestParams, storeResults=True,callback=callback,internalParams=internalParams)
+        return request
+
+    def getData(self, request: AQR.AsyncHttpRequest) -> str:
         queueRunner = AQR.AsyncHttpQueueRunner()
-        queueRunner.execute((action,), 1)
-        data = action.completedActionData
+        queueRunner.execute((request,), 1)
+        data = request.completedActionData
         return data
 
     def formatData(self, data, outputFormat):
@@ -49,12 +51,13 @@ class EsiMarketHistory(object):
             dataTuple = (data, csvData)
             return dataTuple
 
-    def getSingleResult(self, argResults):
-        region_id, type_id = argResults.regionid_typeid
-        outputFileName = argResults.outputFileName
-        outputPath = argResults.outputPath
-        outputFormat = argResults.outputFormat
-        data = self.getData(region_id, type_id)
+    def getSingleResult(self, parsedCommands):
+        region_id, type_id = parsedCommands.regionid_typeid
+        outputFileName = parsedCommands.outputFileName
+        outputPath = parsedCommands.outputPath
+        outputFormat = parsedCommands.outputFormat
+        request = self.buildRequest(region_id,type_id)
+        data = self.getData(request)
         formattedData = self.formatData(data, outputFormat)
         return formattedData
 
@@ -95,28 +98,28 @@ class MarketHistoryCmdLineParser(object):
 
     def doCmdLine(self):
         parser = self.defineCmdParser()
-        results = parser.parse_args(self.cmdArgs[1:])
-        self.validateCommands(results, parser)
-        if results.command == 'getone':
-            formattedData = self.emh.getSingleResult(results)
-            if results.outputPath == 'stdout':
+        parsedCommands = parser.parse_args(self.cmdArgs[1:])
+        self.validateCommands(parsedCommands, parser)
+        if parsedCommands.command == 'getone':
+            formattedData = self.emh.getSingleResult(parsedCommands)
+            if parsedCommands.outputPath == 'stdout':
                 self.printToStdOut(formattedData)
 
-    def validateCommands(self, results, parser):
-        if results.command == 'getmany':
-            if not Path(results.jsonInstructions).exists():
+    def validateCommands(self, parsedCommands, parser):
+        if parsedCommands.command == 'getmany':
+            if not Path(parsedCommands.jsonInstructions).exists():
                 parser.error(
-                    f"{results.jsonInstructions} does not exist. Please provide a valid path.")
-            if not results.outputPath == 'stdout':
-                if not Path(results.outputPath).exists() or not Path(results.outputPath).is_dir():
+                    f"{parsedCommands.jsonInstructions} does not exist. Please provide a valid path.")
+            if not parsedCommands.outputPath == 'stdout':
+                if not Path(parsedCommands.outputPath).exists() or not Path(parsedCommands.outputPath).is_dir():
                     parser.error(
-                        f"{results.outputPath} does not exist or is not a folder/directory. \
+                        f"{parsedCommands.outputPath} does not exist or is not a folder/directory. \
                         Please provide a valid path.")
-        if results.command == 'getone':
-            if not results.outputPath == 'stdout':
-                if not Path(results.outputPath).exists() or not Path(results.outputPath).is_dir():
+        if parsedCommands.command == 'getone':
+            if not parsedCommands.outputPath == 'stdout':
+                if not Path(parsedCommands.outputPath).exists() or not Path(parsedCommands.outputPath).is_dir():
                     parser.error(
-                        f"{results.outputPath} does not exist or is not a folder/directory. \
+                        f"{parsedCommands.outputPath} does not exist or is not a folder/directory. \
                         Please provide a valid path.")
 
     def printToStdOut(self, formattedData):
