@@ -2,10 +2,17 @@
 import asyncQueueRunner.asyncHttpQueueRunner as AQR
 import argparse
 import sys
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import List
 
+
+# setting up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+# console = logging.StreamHandler()
+# logger.addHandler(console)
 API_NAME = "EVE Market History"
 EVE_ESI = "https://esi.evetech.net/latest/"
 API = "markets/<region_id>/history/?datasource=tranquility&type_id=<type_id>"
@@ -17,6 +24,7 @@ MAX_CONNECTIONS = 100
 # TODO figure out headers, useragent etc
 # TODO add code for saving files, and changing formats to EsiMarketHistory
 # TODO - implement wrapper json, to allow saving of request parameters and date
+
 
 class EsiMarketHistory(object):
     def __init__(self):
@@ -31,8 +39,8 @@ class EsiMarketHistory(object):
         requestParams = {'params': {
             'datasource': 'tranquility', 'type_id': type_id}}
         request = AQR.AsyncHttpRequest.get(
-            url, requestParams=requestParams, storeResults=True,callback=callback,internalParams=internalParams)
-        # return request
+            url, requestParams=requestParams, storeResults=True, callback=callback, internalParams=internalParams)
+        return request
 
     def getRequests(self, requests: List[AQR.AsyncHttpRequest], sessionParams: dict = None):
         if len(requests) <= MAX_CONNECTIONS:
@@ -41,39 +49,44 @@ class EsiMarketHistory(object):
             connections = MAX_CONNECTIONS
         queueRunner = AQR.AsyncHttpQueueRunner()
         queueRunner.execute(requests, connections, sessionParams=sessionParams)
-        return requests
+        # return requests
 
     def getData(self, request: AQR.AsyncHttpRequest) -> str:
-        self.getRequests((request,))
+        # self.getRequests((request,))
         data = request.completedActionData
         return data
 
     def formatData(self, data, outputFormat):
+        print(data)
         if outputFormat == 'json':
-            return data
+            return ((self.formatJson(data), 'json'),)
         if outputFormat == 'csv':
-            csvData = self.convertToCsv(data)
-            return csvData
+            return ((self.formatCsv(data), 'csv'),)
         if outputFormat == 'both':
-            csvData = self.convertToCsv(data)
-            dataTuple = (data, csvData)
-            return dataTuple
+            return ((self.formatJson(data), 'json'), (self.formatCsv(data), 'csv'))
 
-    def getSingleResult(self, parsedCommands):
-        region_id, type_id = parsedCommands.regionid_typeid
-        outputFileName = parsedCommands.outputFileName
-        outputPath = parsedCommands.outputPath
-        outputFormat = parsedCommands.outputFormat
-        request = self.buildRequest(region_id,type_id)
-        data = self.getData(request)
-        formattedData = self.formatData(data, outputFormat)
-        return formattedData
+    def formatJson(self, data):
+        return data
+
+    def formatCsv(self, data):
+        csvData = self.convertToCsv(data)
+        return csvData
+
+    # def getSingleResult(self, parsedCommands):
+    #     region_id, type_id = parsedCommands.regionid_typeid
+    #     outputFileName = parsedCommands.outputFileName
+    #     outputPath = parsedCommands.outputPath
+    #     outputFormat = parsedCommands.outputFormat
+    #     request = self.buildRequest(region_id,type_id)
+    #     data = self.getData(request)
+    #     formattedData = self.formatData(data, outputFormat)
+    #     return formattedData
 
 
 class MarketHistoryCmdLineParser(object):
     def __init__(self, cmdArgs):
         self.cmdArgs = cmdArgs
-        self.emh = EsiMarketHistory()
+        self.target = EsiMarketHistory()
         self.parser = self.defineCmdParser()
 
     def defineCmdParser(self):
@@ -110,9 +123,27 @@ class MarketHistoryCmdLineParser(object):
         parsedCommands = self.parser.parse_args(self.cmdArgs[1:])
         self.validateCommands(parsedCommands)
         if parsedCommands.command == 'getone':
-            formattedData = self.emh.getSingleResult(parsedCommands)
             if parsedCommands.outputPath == 'stdout':
-                self.printToStdOut(formattedData)
+                self.printToStdOut(parsedCommands)
+            else:
+                self.saveToFile(parsedCommands)
+
+    def validateCompletedRequest(self, request):
+        pass
+
+    def printToStdOut(self, parsedCommands):
+        if parsedCommands.command == 'getone':
+            region_id, type_id = parsedCommands.regionid_typeid
+            request = self.target.buildRequest(region_id, type_id)
+            self.target.getRequests((request,))
+            self.validateCompletedRequest(request)
+            data = self.target.getData(request)
+            formattedData = self.target.formatData(
+                data, parsedCommands.outputFormat)
+            for item in formattedData:
+                print(item[0])
+        if parsedCommands.command == 'getmany':
+            raise NotImplementedError() 
 
     def validateCommands(self, parsedCommands):
         if parsedCommands.command == 'getmany':
@@ -120,29 +151,32 @@ class MarketHistoryCmdLineParser(object):
                 self.parser.error(
                     f"{parsedCommands.jsonInstructions} does not exist. Please provide a valid path.")
             if not parsedCommands.outputPath == 'stdout':
-                if not Path(parsedCommands.outputPath).exists() or not Path(parsedCommands.outputPath).is_dir():
+                if not Path(parsedCommands.outputPath).is_dir():
                     self.parser.error(
                         f"{parsedCommands.outputPath} does not exist or is not a folder/directory. \
                         Please provide a valid path.")
         if parsedCommands.command == 'getone':
             if not parsedCommands.outputPath == 'stdout':
-                if not Path(parsedCommands.outputPath).exists() or not Path(parsedCommands.outputPath).is_dir():
+                if not Path(parsedCommands.outputPath).is_dir():
                     self.parser.error(
                         f"{parsedCommands.outputPath} does not exist or is not a folder/directory. \
                         Please provide a valid path.")
 
-    def printToStdOut(self, formattedData):
-        print(formattedData)
+    # def printToStdOut(self, formattedData):
+    #     print(formattedData)
 
-        # print(argResults)
+    #     # print(argResults)
 
     def getFilename(self, region_id, type_id):
         filenameTemplate = f"MarketHistory_{region_id}_{type_id}_"
-        dateString = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
-        return filenameTemplate + dateString
+        # dateString = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
+        return filenameTemplate + DATETIMESTRING
 
-    def saveToFile(self, formattedData, path, filename):
-        pass
+    def saveToFile(self, parsedCommands):
+        if parsedCommands.command == 'getone':
+            raise NotImplementedError() 
+        if parsedCommands.command == 'getmany':
+            raise NotImplementedError() 
 
 
 if __name__ == '__main__':
