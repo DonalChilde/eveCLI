@@ -5,7 +5,7 @@ from datetime import datetime
 
 API_NAME = "EVE Market Prices"
 EVE_ESI = "https://esi.evetech.net/latest/"
-API = "markets/prices/?datasource=tranquility"
+API = "markets/prices/"
 FILENAME = "MarketPrices"
 DATETIMESTRING = datetime.utcnow().strftime('%Y-%m-%dT%H.%M.%S')
 
