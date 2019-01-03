@@ -5,7 +5,8 @@ import logging
 from pathlib import Path
 from datetime import datetime
 from typing import List
-from utils import saveToFile
+from eveCli.utils import saveToFile
+# import utils
 
 
 # setting up logger
@@ -93,7 +94,7 @@ class MarketPricesCmdLineParser(object):
         parsedCommands = self.parser.parse_args(self.cmdLineArgs[1:])
         self.validateCommands(parsedCommands)
         if parsedCommands.outputFolderPath == 'stdout':
-            self.printToStdOut(parsedCommands.outputFormat)
+            self.printToStdOut(parsedCommands)
         else:
             self.saveToFile(parsedCommands)
 
@@ -105,13 +106,13 @@ class MarketPricesCmdLineParser(object):
     def validateCompletedRequest(self, request):
         pass
 
-    def printToStdOut(self, outputFormat):
+    def printToStdOut(self, parsedCommands):
         request = self.target.buildRequest()
         self.target.getRequests((request,))
         self.validateCompletedRequest(request)
         data = self.target.getData(request)
         formattedData = self.target.formatData(
-            data, outputFormat)
+            data, parsedCommands.outputFormat)
         for item in formattedData:
             print(item[0])
         # print(formattedData[0])
